@@ -12,6 +12,9 @@ enum MusicState
 public class SoundManger : MonoBehaviour
 {
     [SerializeField]
+    private Slider progressBar;
+
+    [SerializeField]
     private Button playButton;
     [SerializeField]
     private List<AudioClip> audioClips;
@@ -19,7 +22,6 @@ public class SoundManger : MonoBehaviour
     private List<Sprite> buttonSprites;
     private AudioSource audioSource;
     private MusicState state = MusicState.stopPlayingMusic;
-    private Coroutine coroutine;
 
     const string currentState = "curretState";
 
@@ -46,7 +48,6 @@ public class SoundManger : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             audioClips.Add(Clips[i]);
-            Debug.Log(audioClips[i]);
         }
         audioSource.clip = audioClips[0];
         Clips.Clear();
@@ -61,7 +62,11 @@ public class SoundManger : MonoBehaviour
             for (int i = 0; i < audioClips.Count; i++)
             {
                 audioSource.clip = audioClips[i];
+                progressStep = audioSource.clip.length / 100;
+                Debug.Log(progressStep);
+                Debug.Log(audioSource.clip.length);
                 audioSource.Play();
+                StartCoroutine(ProgressBar(audioSource.clip.length));
                 yield return new WaitForSeconds(audioSource.clip.length);
             }
             yield return new WaitForSeconds(1f);
@@ -77,11 +82,9 @@ public class SoundManger : MonoBehaviour
     {
         ChangeCurrentState();
         PlayerPrefs.SetString(currentState, state.ToString());
-        Debug.Log(state);
-        
     }
 
-    void stopCurrentCoroutine()
+    void stopCurrentCoroutine(Coroutine coroutine)
     {
         if (coroutine != null)
         {
@@ -95,13 +98,12 @@ public class SoundManger : MonoBehaviour
         if (state == MusicState.playingMusic && audioSource.enabled)
         {
             ChangeButtonIcon(playButton, 2);
-            coroutine = StartCoroutine(clipSequencePlaying());
+            StartCoroutine(clipSequencePlaying());
         }
         else
         {
-            stopCurrentCoroutine();
+            StopAllCoroutines();
         }
-        Debug.Log(state);
     }
 
     private void ChangeCurrentState()
@@ -109,14 +111,30 @@ public class SoundManger : MonoBehaviour
         if (state == MusicState.stopPlayingMusic)
         {
             state = MusicState.playingMusic;
-            coroutine = StartCoroutine(clipSequencePlaying());
+            StartCoroutine(clipSequencePlaying());
             ChangeButtonIcon(playButton, 2);
         }
         else if (state == MusicState.playingMusic)
         {
             state = MusicState.stopPlayingMusic;
-            stopCurrentCoroutine();
+            StopAllCoroutines();
+            audioSource.Stop();
             ChangeButtonIcon(playButton, 1);
+        }
+
+    }
+
+    float progressStep;
+    IEnumerator ProgressBar(float duration)
+    {
+        float time = 0.0f;
+        progressBar.maxValue = duration;
+        while (time < duration)
+        {
+            time += 1;
+            progressBar.value = time;
+            Debug.Log(time);
+            yield return new WaitForSeconds(1f);
         }
 
     }

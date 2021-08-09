@@ -22,37 +22,213 @@ public class SoundManger : MonoBehaviour
     [SerializeField]
     private Button nextButton;
     [SerializeField]
-    private List<Sprite> buttonSprites;
+    private Button firstPlayList;
     [SerializeField]
-    private List<AudioClip> audioClips;
+    private Button secondPlayList;
+    [SerializeField]
+    private List<Sprite> buttonSprites;
+
+    [SerializeField]
+    private List<AudioClip> shortListForTesting;
+    [SerializeField]
+    private List<AudioClip> NormalList;
+
+    public List<AudioClip> audioClips;
 
 
     private AudioSource audioSource;
-    private MusicState state = MusicState.stopPlayingMusic;
-    private bool onStart = true;
-    private Coroutine pauseCoroutine;
+    private MusicState state;
+    private float trackLength;
+    private float elapsedTrackTime;
+    private int trackIndex;
+    private bool blockSort;
 
     const string currentState = "curretState";
     const string volumeLevel = "currentVolumeLevel";
 
+
     private void Start()
     {
+        for (int i = 0; i < shortListForTesting.Count; i++)
+        {
+            audioClips.Add(shortListForTesting[i]);
+        }
+        firstPlayList.interactable = false;
+        //for (int i = 0; i < shortListForTesting.Count; i++)
+        //{
+        //    audioClips.Add(shortListForTesting[i]);
+        //}
         audioSource = this.GetComponent<AudioSource>();
         audioSource.volume = PlayerPrefs.GetFloat(volumeLevel);
         volumeSlider.value = audioSource.volume;
         System.Enum.TryParse(PlayerPrefs.GetString(currentState), out state);
+        if (state == MusicState.pauseMusic)
+        {
+            state = MusicState.stopPlayingMusic;
+            pauseButton.interactable = false;
+        }
+
+        ChangeButtonIcon();
         RandomizeClips();
-        Debug.Log("Randomized");
-        PlayMusic();
+        trackLength = audioSource.clip.length;
+        StartCoroutine(clipSequencePlaying(trackIndex));
+        blockSort = false;
+    }
+    /// <summary>
+    /// Public Methods for Interract with Interface
+    /// </summary>
+
+    public void PlayButton()
+    {
+
+        if (state == MusicState.playingMusic)
+        {
+            state = MusicState.stopPlayingMusic;
+            StopAllCoroutines();
+            ChangeButtonIcon(playButton, 1);
+            audioSource.Stop();
+            trackLength = 0;
+            progressBar.value = 0;
+            pauseButton.interactable = false;
+        }
+        else if (state == MusicState.stopPlayingMusic)
+        {
+            state = MusicState.playingMusic;
+            RandomizeClips();
+            trackLength = audioSource.clip.length;
+            StartCoroutine(clipSequencePlaying(trackIndex));
+            ChangeButtonIcon(playButton, 2);
+            pauseButton.interactable = true;
+
+        }
+        else if (state == MusicState.pauseMusic)
+        {
+            StartCoroutine(clipSequencePlaying(trackIndex));
+            ChangeButtonIcon(playButton, 2);
+            pauseButton.interactable = true;
+            blockSort = false;
+            state = MusicState.playingMusic;
+        }
     }
 
+    public void PauseButton()
+    {
+        state = MusicState.pauseMusic;
+        StopAllCoroutines();
+        audioSource.Pause();
+        ChangeButtonIcon(playButton, 1);
+
+        for (int i = 0; i < audioClips.Count; i++)
+        {
+            if (audioSource.clip == audioClips[i])
+            {
+                trackIndex = i;
+                Debug.Log(trackIndex);
+                break;
+            }
+        }
+
+        elapsedTrackTime = progressBar.value;
+        trackLength = audioSource.clip.length - elapsedTrackTime;
+        blockSort = true;
+        Debug.Log(elapsedTrackTime);
+        Debug.Log(trackLength);
+    }
+
+    public void ChangeVolumeLevel(Slider slider)
+    {
+        audioSource.volume = slider.value;
+    }
+
+    public void ChangePlayList(int index)
+    {
+        blockSort = false;
+        if (audioClips.Count != 0)
+        {
+            audioClips.Clear();
+        }
+        if (index == 0)
+        {
+            for (int i = 0; i < shortListForTesting.Count; i++)
+            {
+                audioClips.Add(shortListForTesting[i]);
+            }
+            firstPlayList.interactable = false;
+            secondPlayList.interactable = true;
+        }
+        else if (index == 1)
+        {
+            for (int i = 0; i < NormalList.Count; i++)
+            {
+                audioClips.Add(NormalList[i]);
+            }
+            secondPlayList.interactable = false;
+            firstPlayList.interactable = true;
+        }
+        StopAllCoroutines();
+        audioSource.Stop();
+        state = MusicState.stopPlayingMusic;
+        trackIndex = 0;
+        elapsedTrackTime = 0;
+        progressBar.value = 0;
+        ChangeButtonIcon(playButton, 1);
+    }
+
+    /// <summary>
+    /// Enumerators
+    /// </summary>
+    /// <param name="index"></param>
+    /// <returns></returns>
+    private IEnumerator clipSequencePlaying(int index)
+    {
+        while (state != MusicState.stopPlayingMusic)
+        {
+            if (!blockSort)
+            {
+                RandomizeClips();
+            }
+
+            for (int i = index; i < audioClips.Count; i++)
+            {
+                audioSource.clip = audioClips[i];
+                if (state == MusicState.pauseMusic)
+                {
+                }
+                else if (state == MusicState.playingMusic)
+                {
+                    trackLength = audioSource.clip.length;
+                    elapsedTrackTime = 0;
+                }
+                audioSource.Play();
+                Debug.Log(audioSource.clip);
+                StartCoroutine(ProgressBar(elapsedTrackTime, audioSource.clip.length));
+                yield return new WaitForSeconds(trackLength);
+            }
+        }
+    }
+
+    private IEnumerator ProgressBar(float elapsedTime, float TrackLength)
+    {
+        progressBar.value = 0;
+        progressBar.maxValue = TrackLength;
+        while (elapsedTime <= TrackLength)
+        {
+
+            progressBar.value = elapsedTime;
+            elapsedTime++;
+            yield return new WaitForSeconds(1f);
+        }
+    }
+    /// <summary>
+    /// Other
+    /// </summary>
     private void RandomizeClips()
     {
         List<AudioClip> Clips = new List<AudioClip>();
         int count = audioClips.Count;
         for (int i = 0; i < count; i++)
         {
-            int randomClipIndex = Random.Range(0, audioClips.Count);
+            int randomClipIndex = UnityEngine.Random.Range(0, audioClips.Count);
             Clips.Add(audioClips[randomClipIndex]);
             audioClips.RemoveAt(randomClipIndex);
         }
@@ -64,171 +240,30 @@ public class SoundManger : MonoBehaviour
         Clips.Clear();
     }
 
-
-
-    private void ChangeButtonIcon(Button button, byte i)
+    private void ChangeButtonIcon(Button button, int index)
     {
-        playButton.GetComponent<Image>().overrideSprite = buttonSprites[i];
+        button.GetComponent<Image>().overrideSprite = buttonSprites[index];
     }
 
-
-    bool pauseState()
+    private void ChangeButtonIcon()
     {
-        if (state == MusicState.pauseMusic)
+        if (state == MusicState.playingMusic)
         {
-            return true;
+            ChangeButtonIcon(playButton, 2);
         }
-        else
+        else if (state == MusicState.stopPlayingMusic)
         {
-            return false;
+            ChangeButtonIcon(playButton, 1);
         }
     }
 
 
-    public void PlayButton()
-    {
-        ChangeCurrentState();
-    }
-
-    public void PauseButton()
-    {
-        state = MusicState.pauseMusic;
-        audioSource.Pause();
-        ChangeButtonIcon(playButton, 1);
-    }
-
-    public void NextButton()
-    {
-        Debug.Log(audioClips[0]);
-        Debug.Log(audioClips[1]);
-        Debug.Log(audioClips[2]);
-        Debug.Log(audioClips[3]);
-        Debug.Log(audioClips[4]);
-        state = MusicState.pauseMusic;
-        for (int i = 0; i < audioClips.Count; i++)
-        {
-            if (i + 1 <= audioClips.Count)
-            {
-                if (audioSource.clip == audioClips[i])
-                {
-                    audioSource.clip = audioClips[i + 1];
-                    Debug.Log("      ");
-                    Debug.Log(audioSource.clip);
-                    return;
-                }
-            }
-            else
-            {
-                audioSource.clip = audioClips[0];
-                Debug.Log("      ");
-                Debug.Log(audioSource.clip);
-                return;
-            }
-        }
-    }
-
+    /// <summary>
+    /// Saving Current Music on/off state
+    /// </summary>
     private void OnApplicationQuit()
     {
         PlayerPrefs.SetFloat(volumeLevel, audioSource.volume);
         PlayerPrefs.SetString(currentState, state.ToString());
     }
-
-    public void ChangeVolumeLevel(Slider slider)
-    {
-        audioSource.volume = slider.value;
-    }
-
-    private void PlayMusic()
-    {
-        if (state == MusicState.playingMusic)
-        {
-            ChangeButtonIcon(playButton, 2);
-            StartCoroutine(clipSequencePlaying());
-        }
-        else
-        {
-            StopAllCoroutines();
-        }
-    }
-
-    private void ChangeCurrentState()
-    {
-        if (state == MusicState.stopPlayingMusic)
-        {
-            state = MusicState.playingMusic;
-            StartCoroutine(clipSequencePlaying());
-            ChangeButtonIcon(playButton, 2);
-        }
-        else if (state == MusicState.playingMusic)
-        {
-            state = MusicState.stopPlayingMusic;
-            StopAllCoroutines();
-            audioSource.Stop();
-            ChangeButtonIcon(playButton, 1);
-        }
-        else if (state == MusicState.pauseMusic)
-        {
-            audioSource.Play();
-            state = MusicState.playingMusic;
-            ChangeButtonIcon(playButton, 2);
-        }
-    }
-
-    private void PlayTrack()
-    {
-        audioSource.Play();
-        StartCoroutine(ProgressBar(audioSource.clip.length));
-    }
-
-    private IEnumerator clipSequencePlaying()
-    {
-        while (state != MusicState.stopPlayingMusic)
-        {
-            RandomizeClips();
-            for (int i = 0; i < audioClips.Count; i++)
-            {
-                if (state == MusicState.pauseMusic)
-                {
-                    yield return new WaitWhile(pauseState);
-                }
-                else
-                {
-                    audioSource.clip = audioClips[i];
-                    PlayTrack();
-                    yield return new WaitForSeconds(audioSource.clip.length);
-                }
-            }
-        }
-    }
-
-
-    private IEnumerator ProgressBar(float duration)
-    {
-        float time = 0.0f;
-        progressBar.maxValue = duration;
-        while (time < duration)
-        {
-            if (state == MusicState.pauseMusic)
-            {
-                yield return new WaitWhile(pauseState);
-            }
-            else
-            {
-                time += 1;
-                progressBar.value = time;
-                yield return new WaitForSeconds(1f);
-            }
-        }
-    }
-
-
-    //void stopCurrentCoroutine(Coroutine coroutine)
-    //{
-    //    if (coroutine != null)
-    //    {
-    //        StopCoroutine(coroutine);
-    //        coroutine = null;
-    //        audioSource.Stop();
-    //    }
-    //}
 }

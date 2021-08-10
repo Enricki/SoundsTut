@@ -42,18 +42,34 @@ public class SoundManger : MonoBehaviour
     private float elapsedTrackTime;
     private int trackIndex;
     private bool blockSort;
+    private int playlistToLoad; 
 
     const string currentState = "curretState";
     const string volumeLevel = "currentVolumeLevel";
-
+    const string currentPlaylist = "currentPlaylist";
 
     private void Start()
     {
-        for (int i = 0; i < shortListForTesting.Count; i++)
+
+        playlistToLoad = PlayerPrefs.GetInt(currentPlaylist);
+        Debug.Log(playlistToLoad);
+
+        if (playlistToLoad == 0)
         {
-            audioClips.Add(shortListForTesting[i]);
+            for (int i = 0; i < shortListForTesting.Count; i++)
+            {
+                audioClips.Add(shortListForTesting[i]);
+            }
+            firstPlayList.interactable = false;
         }
-        firstPlayList.interactable = false;
+        else if (playlistToLoad == 1)
+        {
+            for (int i = 0; i < NormalList.Count; i++)
+            {
+                audioClips.Add(NormalList[i]);
+            }
+            secondPlayList.interactable = false;
+        }
         //for (int i = 0; i < shortListForTesting.Count; i++)
         //{
         //    audioClips.Add(shortListForTesting[i]);
@@ -65,6 +81,10 @@ public class SoundManger : MonoBehaviour
         if (state == MusicState.pauseMusic)
         {
             state = MusicState.stopPlayingMusic;
+            pauseButton.interactable = false;
+        }
+        else if (state == MusicState.stopPlayingMusic)
+        {
             pauseButton.interactable = false;
         }
 
@@ -117,6 +137,7 @@ public class SoundManger : MonoBehaviour
         StopAllCoroutines();
         audioSource.Pause();
         ChangeButtonIcon(playButton, 1);
+        pauseButton.interactable = false;
 
         for (int i = 0; i < audioClips.Count; i++)
         {
@@ -155,6 +176,8 @@ public class SoundManger : MonoBehaviour
             }
             firstPlayList.interactable = false;
             secondPlayList.interactable = true;
+            playlistToLoad = 0;
+            Debug.Log(playlistToLoad);
         }
         else if (index == 1)
         {
@@ -164,6 +187,8 @@ public class SoundManger : MonoBehaviour
             }
             secondPlayList.interactable = false;
             firstPlayList.interactable = true;
+            playlistToLoad = 1;
+            Debug.Log(playlistToLoad);
         }
         StopAllCoroutines();
         audioSource.Stop();
@@ -172,6 +197,7 @@ public class SoundManger : MonoBehaviour
         elapsedTrackTime = 0;
         progressBar.value = 0;
         ChangeButtonIcon(playButton, 1);
+        pauseButton.interactable = false;
     }
 
     /// <summary>
@@ -263,7 +289,9 @@ public class SoundManger : MonoBehaviour
     /// </summary>
     private void OnApplicationQuit()
     {
+
         PlayerPrefs.SetFloat(volumeLevel, audioSource.volume);
         PlayerPrefs.SetString(currentState, state.ToString());
+        PlayerPrefs.SetInt(currentPlaylist, playlistToLoad);
     }
 }

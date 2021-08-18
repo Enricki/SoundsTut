@@ -3,12 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-enum MusicState
-{
-    stopPlayingMusic, playingMusic, pauseMusic
-}
-
-
 public class SoundManger : MonoBehaviour
 {
     [SerializeField]
@@ -70,10 +64,7 @@ public class SoundManger : MonoBehaviour
             }
             secondPlayList.interactable = false;
         }
-        //for (int i = 0; i < shortListForTesting.Count; i++)
-        //{
-        //    audioClips.Add(shortListForTesting[i]);
-        //}
+
         audioSource = this.GetComponent<AudioSource>();
         audioSource.volume = PlayerPrefs.GetFloat(volumeLevel);
         volumeSlider.value = audioSource.volume;
